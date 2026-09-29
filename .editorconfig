@@ -1,0 +1,48 @@
+root = true
+
+[*]
+indent_style = space
+charset = utf-8
+insert_final_newline = true
+
+[*.{cs,xaml}]
+indent_size = 4
+
+[*.{csproj,props,json,xml}]
+indent_size = 2
+
+[*.cs]
+csharp_style_namespace_declarations = file_scoped:warning
+dotnet_sort_system_directives_first = true
+
+# Private/internal fields: camelCase, no '_' prefix, always accessed via 'this.'
+dotnet_naming_symbols.private_fields.applicable_kinds = field
+dotnet_naming_symbols.private_fields.applicable_accessibilities = private, internal, private_protected
+dotnet_naming_symbols.private_fields.required_modifiers =
+dotnet_naming_style.camel_case.capitalization = camel_case
+dotnet_naming_rule.private_fields_camel_case.symbols = private_fields
+dotnet_naming_rule.private_fields_camel_case.style = camel_case
+dotnet_naming_rule.private_fields_camel_case.severity = warning
+
+# Constants and static readonly fields stay PascalCase (rules with required modifiers are more specific and win).
+dotnet_naming_symbols.constants.applicable_kinds = field
+dotnet_naming_symbols.constants.required_modifiers = const
+dotnet_naming_symbols.static_readonly.applicable_kinds = field
+dotnet_naming_symbols.static_readonly.required_modifiers = static, readonly
+dotnet_naming_style.pascal_case.capitalization = pascal_case
+dotnet_naming_rule.constants_pascal_case.symbols = constants
+dotnet_naming_rule.constants_pascal_case.style = pascal_case
+dotnet_naming_rule.constants_pascal_case.severity = warning
+dotnet_naming_rule.static_readonly_pascal_case.symbols = static_readonly
+dotnet_naming_rule.static_readonly_pascal_case.style = pascal_case
+dotnet_naming_rule.static_readonly_pascal_case.severity = warning
+
+# No 'var': always spell out the type.
+csharp_style_var_for_built_in_types = false:warning
+csharp_style_var_when_type_is_apparent = false:warning
+csharp_style_var_elsewhere = false:warning
+dotnet_diagnostic.IDE0008.severity = warning
+
+dotnet_style_qualification_for_field = true:warning
+dotnet_diagnostic.IDE1006.severity = warning
+dotnet_diagnostic.IDE0009.severity = warning

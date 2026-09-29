@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    WPF + Prism/DryIoc integration of the logging core: global exception handling,
+    logging-aware command base classes and container registration.
+  -->
+  <PropertyGroup>
+    <TargetFrameworks>net472;net8.0-windows;net10.0-windows</TargetFrameworks>
+    <UseWPF>true</UseWPF>
+    <RootNamespace>LogDemo.Logging.Wpf</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\LogDemo.Logging\LogDemo.Logging.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Prism.DryIoc" />
+    <!-- Direct reference so the [LoggerMessage] source generator runs in this project. -->
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="LogDemo.Logging.Tests" />
+  </ItemGroup>
+
+</Project>

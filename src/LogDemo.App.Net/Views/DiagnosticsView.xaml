@@ -1,0 +1,64 @@
+<UserControl x:Class="LogDemo.App.Net.Views.DiagnosticsView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:prism="http://prismlibrary.com/"
+             xmlns:commands="clr-namespace:LogDemo.App.Net.Commands"
+             prism:ViewModelLocator.AutoWireViewModel="True">
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <StackPanel>
+            <TextBlock Style="{StaticResource PageTitle}" Text="Diagnostics" />
+
+            <Grid Margin="0,0,0,16">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition /><RowDefinition /><RowDefinition /><RowDefinition /><RowDefinition /><RowDefinition />
+                </Grid.RowDefinitions>
+
+                <TextBlock Grid.Row="0" Style="{StaticResource Label}" Text="Session" />
+                <TextBox Grid.Row="0" Grid.Column="1" Style="{StaticResource Value}" Text="{Binding Session.SessionId, Mode=OneWay}" />
+
+                <TextBlock Grid.Row="1" Style="{StaticResource Label}" Text="Current log file" />
+                <TextBox Grid.Row="1" Grid.Column="1" Style="{StaticResource Value}" Text="{Binding Session.LogFilePath, Mode=OneWay}" />
+
+                <TextBlock Grid.Row="2" Style="{StaticResource Label}" Text="Retention" />
+                <TextBox Grid.Row="2" Grid.Column="1" Style="{StaticResource Value}"
+                         Text="{Binding Options.RetentionDays, Mode=OneWay, StringFormat='{}{0} days (applied at startup)'}" />
+
+                <TextBlock Grid.Row="3" Style="{StaticResource Label}" Text="Max file size" />
+                <TextBox Grid.Row="3" Grid.Column="1" Style="{StaticResource Value}"
+                         Text="{Binding Options.MaxFileSizeMB, Mode=OneWay, StringFormat='{}{0} MB per file, then rolls to _001, _002...'}" />
+
+                <TextBlock Grid.Row="4" Style="{StaticResource Label}" Text="Settings" />
+                <TextBox Grid.Row="4" Grid.Column="1" Style="{StaticResource Value}" Text="{Binding Paths.AppSettingsFile, Mode=OneWay}" />
+
+                <TextBlock Grid.Row="5" Style="{StaticResource Label}" Text="User overrides" />
+                <TextBox Grid.Row="5" Grid.Column="1" Style="{StaticResource Value}" Text="{Binding Paths.UserSettingsFile, Mode=OneWay}" />
+            </Grid>
+
+            <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
+                <Button Content="Open log folder" Command="{Binding OpenLogFolderCommand}" />
+                <Button Content="Write sample log entries" Command="{Binding WriteSampleLogsCommand}" />
+            </StackPanel>
+
+            <CheckBox Margin="0,0,0,16" IsChecked="{Binding Settings.SimulateBackendFailures}"
+                      Content="Simulate backend failures (Customers page shows a handled, logged error)" />
+
+            <TextBlock Text="Unhandled exceptions" FontWeight="SemiBold" Margin="0,0,0,6" />
+            <StackPanel Orientation="Horizontal" Margin="0,0,0,16">
+                <Button Content="Throw on UI thread" Command="{Binding SimulateCrashCommand}"
+                        CommandParameter="{x:Static commands:SimulateCrashCommand.UiThread}" />
+                <Button Content="Crash worker thread" Command="{Binding SimulateCrashCommand}"
+                        CommandParameter="{x:Static commands:SimulateCrashCommand.WorkerThread}" />
+            </StackPanel>
+
+            <TextBlock TextWrapping="Wrap" Foreground="{StaticResource MutedTextBrush}">
+                Tip: change "Logging:LogLevel:Default" to "Debug" in either settings file while the app is running,
+                then click "Write sample log entries" again. Level changes apply immediately; file settings
+                (folder, retention, size) apply on the next start.
+            </TextBlock>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

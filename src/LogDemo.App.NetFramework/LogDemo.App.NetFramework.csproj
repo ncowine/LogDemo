@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net472</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <AssemblyName>LogDemo.NetFx</AssemblyName>
+    <RootNamespace>LogDemo.App.NetFramework</RootNamespace>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <!-- Microsoft.Extensions.* bring newer System.Memory etc. than .NET Framework ships; redirects keep them consistent. -->
+    <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
+    <GenerateBindingRedirectsOutputType>true</GenerateBindingRedirectsOutputType>
+  </PropertyGroup>
+
+  <!-- Only the logging core is shared; everything else in this app is its own. -->
+  <ItemGroup>
+    <ProjectReference Include="..\Common\LogDemo.Logging\LogDemo.Logging.csproj" />
+    <ProjectReference Include="..\Common\LogDemo.Logging.Wpf\LogDemo.Logging.Wpf.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Prism.DryIoc" />
+    <!-- Direct reference so the [LoggerMessage] source generator runs in this project. -->
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="appsettings.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,44 @@
+<UserControl x:Class="LogDemo.App.NetFramework.Views.CustomersView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:prism="http://prismlibrary.com/"
+             prism:ViewModelLocator.AutoWireViewModel="True">
+    <DockPanel>
+        <TextBlock DockPanel.Dock="Top" Style="{StaticResource PageTitle}" Text="Customers" />
+
+        <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,10">
+            <Button Content="Refresh" Command="{Binding LoadCommand}" />
+            <Button Content="Remove" Command="{Binding RemoveCommand}" />
+            <ProgressBar Width="120" Height="6" Margin="8,0" IsIndeterminate="True"
+                         Visibility="{Binding IsBusy, Converter={StaticResource BoolToVisibility}}" />
+            <TextBlock VerticalAlignment="Center" Foreground="{StaticResource MutedTextBrush}"
+                       Text="{Binding LastRefreshed, StringFormat='Last refreshed {0:T}'}" />
+        </StackPanel>
+
+        <Border DockPanel.Dock="Top" Padding="10,6" Margin="0,0,0,10" CornerRadius="3"
+                Background="{StaticResource ErrorBackgroundBrush}">
+            <Border.Style>
+                <Style TargetType="Border">
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding ErrorMessage}" Value="{x:Null}">
+                            <Setter Property="Visibility" Value="Collapsed" />
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </Border.Style>
+            <TextBlock Text="{Binding ErrorMessage}" TextWrapping="Wrap" Foreground="{StaticResource ErrorForegroundBrush}" />
+        </Border>
+
+        <DataGrid ItemsSource="{Binding Customers}"
+                  SelectedItem="{Binding SelectedCustomer, Mode=TwoWay}"
+                  AutoGenerateColumns="False" IsReadOnly="True" SelectionMode="Single"
+                  HeadersVisibility="Column" GridLinesVisibility="Horizontal">
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="Id" Binding="{Binding Id}" Width="70" />
+                <DataGridTextColumn Header="Name" Binding="{Binding Name}" Width="*" />
+                <DataGridTextColumn Header="E-mail" Binding="{Binding Email}" Width="*" />
+                <DataGridTextColumn Header="City" Binding="{Binding City}" Width="140" />
+            </DataGrid.Columns>
+        </DataGrid>
+    </DockPanel>
+</UserControl>

@@ -1,0 +1,39 @@
+using System;
+using System.IO;
+using System.Reflection;
+
+namespace LogDemo.Logging;
+
+/// <summary>
+/// Per-user writable locations, derived from the entry assembly's Company/Product attributes.
+/// Never write next to the executable: under Program Files that fails for standard users.
+/// </summary>
+public sealed class AppPaths
+{
+    public AppPaths(Assembly entryAssembly)
+    {
+        if (entryAssembly is null)
+        {
+            throw new ArgumentNullException(nameof(entryAssembly));
+        }
+
+        string company = entryAssembly.GetCustomAttribute<AssemblyCompanyAttribute>()?.Company ?? "Company";
+        string product = entryAssembly.GetCustomAttribute<AssemblyProductAttribute>()?.Product ?? entryAssembly.GetName().Name ?? "App";
+
+        DataDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), company, product);
+        DefaultLogDirectory = Path.Combine(DataDirectory, "Logs");
+        UserSettingsFile = Path.Combine(DataDirectory, "appsettings.user.json");
+        AppSettingsFile = Path.Combine(AppContext.BaseDirectory, "appsettings.json");
+    }
+
+    /// <summary><c>%LOCALAPPDATA%\{Company}\{Product}</c></summary>
+    public string DataDirectory { get; }
+
+    public string DefaultLogDirectory { get; }
+
+    /// <summary>Installed defaults, next to the executable.</summary>
+    public string AppSettingsFile { get; }
+
+    /// <summary>Optional per-user overrides (e.g. support turns on Debug logging for one user).</summary>
+    public string UserSettingsFile { get; }
+}
