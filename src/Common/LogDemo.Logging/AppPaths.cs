@@ -5,7 +5,7 @@ using System.Reflection;
 namespace LogDemo.Logging;
 
 /// <summary>
-/// Per-user writable locations, derived from the entry assembly's Company/Product attributes.
+/// Per-user writable locations, derived from the entry assembly's Company/Product/Version attributes.
 /// Never write next to the executable: under Program Files that fails for standard users.
 /// </summary>
 public sealed class AppPaths
@@ -21,7 +21,7 @@ public sealed class AppPaths
         string product = entryAssembly.GetCustomAttribute<AssemblyProductAttribute>()?.Product ?? entryAssembly.GetName().Name ?? "App";
 
         DataDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), company, product);
-        DefaultLogDirectory = Path.Combine(DataDirectory, "Logs");
+        DefaultLogDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), product, GetVersion(entryAssembly));
         UserSettingsFile = Path.Combine(DataDirectory, "appsettings.user.json");
         AppSettingsFile = Path.Combine(AppContext.BaseDirectory, "appsettings.json");
     }
@@ -29,6 +29,7 @@ public sealed class AppPaths
     /// <summary><c>%LOCALAPPDATA%\{Company}\{Product}</c></summary>
     public string DataDirectory { get; }
 
+    /// <summary><c>Documents\{Product}\{Version}</c>, one folder per installed version.</summary>
     public string DefaultLogDirectory { get; }
 
     /// <summary>Installed defaults, next to the executable.</summary>
@@ -36,4 +37,25 @@ public sealed class AppPaths
 
     /// <summary>Optional per-user overrides (e.g. support turns on Debug logging for one user).</summary>
     public string UserSettingsFile { get; }
+
+    private static string GetVersion(Assembly entryAssembly)
+    {
+        string version = entryAssembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion
+            ?? entryAssembly.GetName().Version?.ToString()
+            ?? "0.0.0";
+
+        // Drop build metadata ("1.0.0+abc123"), otherwise every commit would get its own folder.
+        int metadata = version.IndexOf('+');
+        if (metadata >= 0)
+        {
+            version = version.Substring(0, metadata);
+        }
+
+        foreach (char invalid in Path.GetInvalidFileNameChars())
+        {
+            version = version.Replace(invalid, '_');
+        }
+
+        return version;
+    }
 }

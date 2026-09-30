@@ -22,7 +22,7 @@ public sealed class FileLoggingOptions
 
     /// <summary>
     /// Log folder. Environment variables are expanded, e.g. <c>%LOCALAPPDATA%\Contoso\LogDemo\Logs</c>.
-    /// When empty, <c>%LOCALAPPDATA%\{Company}\{Product}\Logs</c> is used.
+    /// When empty, <c>Documents\{Product}\{Version}</c> is used.
     /// </summary>
     public string? Directory { get; set; }
 

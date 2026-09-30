@@ -70,7 +70,7 @@ variables with the `LOGDEMO_` prefix. Later sources win.
     }
   },
   "FileLogging": {                   // read at startup
-    "Directory": "%LOCALAPPDATA%\\Contoso\\LogDemo\\Logs",   // env vars expanded; relative = exe folder
+    "Directory": "",                 // default: Documents\{Product}\{Version}; env vars expanded; relative = exe folder
     "FilePrefix": null,              // default: the app name; retention only touches this prefix
     "RetentionDays": 7,              // 1..365
     "MaxRetainedFiles": 100,         // guards against crash loops; 0 = unlimited
