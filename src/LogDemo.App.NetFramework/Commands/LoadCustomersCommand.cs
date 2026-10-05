@@ -11,7 +11,7 @@ using Microsoft.Extensions.Logging;
 
 namespace LogDemo.App.NetFramework.Commands;
 
-public sealed class LoadCustomersCommand : AsyncCommandBase
+public sealed class LoadCustomersCommand : DelegateBaseAsyncCommand
 {
     internal const string LoadFailedMessage =
         "Customers could not be loaded. Please try again in a moment. (The details were written to the log file.)";
@@ -26,9 +26,9 @@ public sealed class LoadCustomersCommand : AsyncCommandBase
         this.customerService = customerService ?? throw new ArgumentNullException(nameof(customerService));
     }
 
-    protected override bool CanStart(object? parameter) => !this.viewModel.IsBusy;
+    protected override bool CanInvoke(object? parameter) => !this.viewModel.IsBusy;
 
-    protected override async Task ExecuteCoreAsync(object? parameter, CancellationToken cancellationToken)
+    protected override async Task InvokeAsync(object? parameter, CancellationToken cancellationToken)
     {
         this.viewModel.IsBusy = true;
         this.viewModel.ErrorMessage = null;

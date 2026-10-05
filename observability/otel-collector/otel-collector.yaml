@@ -1,0 +1,72 @@
+# OpenTelemetry Collector — the only ingest point the desktop apps talk to.
+#
+#   desktop apps ──OTLP/HTTP :4318──► this collector ──► loki:3100  (logs)
+#                                                     └─► tempo:4317 (traces)
+#
+# Loki and Tempo have no authentication and their ports also serve queries, so they stay
+# reachable only from the stack's Docker network and the IIS server. User subnets get this one
+# port and nothing else. Setup: ../README.md
+
+extensions:
+  # Liveness for `docker compose ps`-style checks from the host: curl http://<host>:13133/
+  health_check:
+    endpoint: 0.0.0.0:13133
+
+receivers:
+  otlp:
+    protocols:
+      # HTTP/protobuf only. gRPC is awkward on .NET Framework 4.7.2, and one port is one firewall rule.
+      http:
+        endpoint: 0.0.0.0:4318
+        # A desktop batch is at most 512 records; anything near this size is a bug or not ours.
+        max_request_body_size: 4194304   # 4 MiB
+
+processors:
+  # First in every pipeline: under memory pressure the collector refuses data (clients retry
+  # later or drop it) instead of being OOM-killed and losing everything in flight.
+  memory_limiter:
+    check_interval: 1s
+    limit_mib: 400
+    spike_limit_mib: 100
+
+  resource/desktop:
+    attributes:
+      # Separates desktop telemetry from the API's in Loki and Tempo: {service_namespace="desktop"}.
+      # Set here rather than in the apps, so no client version can forget it.
+      - key: service.namespace
+        value: desktop
+        action: upsert
+      # Loki turns service.instance.id into an index label. A client that sends one per app start
+      # would create a new stream per session on every desktop. The apps don't send it; this makes sure.
+      - key: service.instance.id
+        action: delete
+
+  batch:
+    send_batch_size: 1024
+    timeout: 5s
+
+exporters:
+  # Loki's native OTLP endpoint; /v1/logs is appended. Needs allow_structured_metadata: true in
+  # loki.yaml (already set in the stack), which is where user.name, session.id etc. end up.
+  otlp_http/loki:
+    endpoint: http://loki:3100/otlp
+
+  otlp_grpc/tempo:
+    endpoint: tempo:4317
+    tls:
+      insecure: true   # Docker-internal hop
+
+service:
+  extensions: [health_check]
+  pipelines:
+    logs:
+      receivers: [otlp]
+      processors: [memory_limiter, resource/desktop, batch]
+      exporters: [otlp_http/loki]
+    traces:
+      receivers: [otlp]
+      processors: [memory_limiter, resource/desktop, batch]
+      exporters: [otlp_grpc/tempo]
+  telemetry:
+    logs:
+      level: info

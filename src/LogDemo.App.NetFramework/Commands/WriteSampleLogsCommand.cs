@@ -13,14 +13,14 @@ namespace LogDemo.App.NetFramework.Commands;
 /// Uses the <c>LogXxx</c> extension methods on purpose, to show plain message templates next to the
 /// source-generated <c>AppLog</c> methods. They're fine for rare messages; prefer [LoggerMessage] on hot paths.
 /// </remarks>
-public sealed class WriteSampleLogsCommand : CommandBase
+public sealed class WriteSampleLogsCommand : DelegateBaseCommand
 {
     public WriteSampleLogsCommand(ILogger<WriteSampleLogsCommand> logger)
         : base(logger)
     {
     }
 
-    protected override void ExecuteCore(object? parameter)
+    protected override void Invoke(object? parameter)
     {
         Logger.LogTrace("Sample trace: very detailed diagnostics, normally off");
         Logger.LogDebug("Sample debug: developer details, e.g. {CacheHits} cache hits", 42);

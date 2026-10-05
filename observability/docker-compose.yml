@@ -1,0 +1,67 @@
+# =============================================================================
+#  LogDemo desktop telemetry — an add-on to the existing observability stack
+# =============================================================================
+# The Grafana/Loki/Tempo stack is defined and run elsewhere (the CleanArchitecture
+# repository's observability/ folder). This project adds only what the desktop apps
+# need, WITHOUT editing that stack's files:
+#
+#   otel-collector   the one ingest point for desktops (OTLP/HTTP :4318), forwarding
+#                    to loki:3100 and tempo:4317 over the stack's Docker network
+#   grafana-setup    one-shot: adds the "LogDemo — Desktop Apps" dashboard and two
+#                    alert rules to the stack's Grafana through its HTTP API
+#
+# Run it on the same Docker host, after the stack is up:
+#
+#   cp .env.example .env              (PowerShell: copy .env.example .env) and edit it
+#   docker compose up -d
+#   docker compose logs grafana-setup   should end with "... are in Grafana"
+#
+# Setup, firewall and verification: README.md
+# =============================================================================
+
+name: logdemo-telemetry
+
+x-logging: &logging
+  logging:
+    driver: json-file
+    options:
+      max-size: "10m"
+      max-file: "3"
+
+services:
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:${COLLECTOR_VERSION}
+    <<: *logging
+    command: ["--config=/etc/otelcol/config.yaml"]
+    volumes:
+      - ./otel-collector/otel-collector.yaml:/etc/otelcol/config.yaml:ro
+    ports:
+      - "${BIND_ADDR}:4318:4318"     # OTLP/HTTP ingest — from the desktop subnets
+      - "${BIND_ADDR}:13133:13133"   # health check — curl http://<host>:13133/
+    networks: [stack]
+    # No healthcheck: the image is distroless (no shell, no curl). Use the health port instead.
+    security_opt:
+      - no-new-privileges:true
+    restart: unless-stopped
+    mem_limit: 512m                  # memory_limiter in the config stops accepting data at 400 MiB
+
+  grafana-setup:
+    image: curlimages/curl:8.11.1
+    <<: *logging
+    environment:
+      GRAFANA_URL: "${GRAFANA_URL:-http://grafana:3000}"
+      GRAFANA_USER: "${GRAFANA_USER:-admin}"
+      GRAFANA_PASSWORD: "${GRAFANA_PASSWORD:-}"
+    volumes:
+      - ./grafana:/provision:ro
+    entrypoint: ["/bin/sh", "/provision/provision.sh"]
+    networks: [stack]
+    restart: "no"
+
+networks:
+  # The stack's own network, so loki, tempo and grafana resolve by service name.
+  # `docker network ls` shows it: <stack project name>_default.
+  stack:
+    external: true
+    name: ${STACK_NETWORK:?set STACK_NETWORK in .env, e.g. cleanarch-prod_default}

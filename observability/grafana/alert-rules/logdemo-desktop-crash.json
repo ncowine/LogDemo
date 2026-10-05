@@ -1,0 +1,58 @@
+{
+  "uid": "logdemo-desktop-crash",
+  "title": "Desktop app crashed",
+  "condition": "THRESHOLD",
+  "folderUID": "logdemo",
+  "ruleGroup": "logdemo-desktop",
+  "orgID": 1,
+  "for": "0s",
+  "noDataState": "OK",
+  "execErrState": "OK",
+  "labels": {
+    "severity": "critical",
+    "service": "logdemo-desktop"
+  },
+  "annotations": {
+    "summary": "{{ $labels.service_name }} {{ $labels.service_version }} crashed for {{ $labels.user_name }} on {{ $labels.host_name }}",
+    "description": "Critical record ({{ $labels.exception_type }}) in the last 5 minutes. Dashboard: LogDemo — Desktop Apps. Explore: {service_namespace=\"desktop\"} | user_name=\"{{ $labels.user_name }}\" | severity_number >= 17"
+  },
+  "data": [
+    {
+      "refId": "QUERY",
+      "relativeTimeRange": {
+        "from": 300,
+        "to": 0
+      },
+      "datasourceUid": "loki",
+      "model": {
+        "refId": "QUERY",
+        "editorMode": "code",
+        "queryType": "instant",
+        "expr": "sum by (service_name, service_version, user_name, host_name, exception_type) (count_over_time({service_namespace=\"desktop\"} | severity_number >= 21 [5m]))"
+      }
+    },
+    {
+      "refId": "THRESHOLD",
+      "relativeTimeRange": {
+        "from": 300,
+        "to": 0
+      },
+      "datasourceUid": "__expr__",
+      "model": {
+        "refId": "THRESHOLD",
+        "type": "threshold",
+        "expression": "QUERY",
+        "conditions": [
+          {
+            "evaluator": {
+              "type": "gt",
+              "params": [
+                0
+              ]
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

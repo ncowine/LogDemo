@@ -14,6 +14,8 @@
   <ItemGroup>
     <ProjectReference Include="..\Common\LogDemo.Logging\LogDemo.Logging.csproj" />
     <ProjectReference Include="..\Common\LogDemo.Logging.Wpf\LogDemo.Logging.Wpf.csproj" />
+    <!-- Opt-in: central export to the observability stack (pulls in the OpenTelemetry packages). -->
+    <ProjectReference Include="..\Common\LogDemo.Logging.Observability\LogDemo.Logging.Observability.csproj" />
   </ItemGroup>
 
   <ItemGroup>

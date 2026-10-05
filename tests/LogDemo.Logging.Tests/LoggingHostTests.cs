@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -107,6 +108,40 @@ public sealed class LoggingHostTests
         Assert.Contains("deleted 1", File.ReadLines(path).Single(l => l.Contains("Log retention")));
     }
 
+    [Fact]
+    public void Extension_that_cannot_start_is_logged_and_the_app_keeps_its_file_log()
+    {
+        using TempDirectory dir = new TempDirectory();
+
+        string path;
+        using (LoggingHost host = LoggingHost.Create(
+            Configuration(dir.Path), "App", dir.Path, "1.0.0", _ => throw new InvalidOperationException("exporter broken")))
+        {
+            host.LoggerFactory.CreateLogger("App").LogInformation("still logging");
+            path = host.Session.LogFilePath;
+        }
+
+        string content = File.ReadAllText(path);
+        Assert.Contains("Logging extension could not be started", content);
+        Assert.Contains("exporter broken", content);
+        Assert.Contains("still logging", content);
+    }
+
+    [Fact]
+    public void Extension_failing_while_the_factory_is_built_is_cleaned_up_and_rethrown()
+    {
+        using TempDirectory dir = new TempDirectory();
+        ThrowingExtension extension = new ThrowingExtension();
+
+        Assert.Throws<InvalidOperationException>(() => LoggingHost.Create(Configuration(dir.Path), "App", dir.Path, "1.0.0", _ => extension));
+
+        Assert.True(extension.Disposed);
+        foreach (string file in Directory.GetFiles(dir.Path, "App_*.log"))
+        {
+            File.Delete(file); // throws if the session file were still open
+        }
+    }
+
     private static IConfiguration Configuration(string directory, IDictionary<string, string?>? values = null)
     {
         Dictionary<string, string?> all = new Dictionary<string, string?> { ["FileLogging:Directory"] = directory };
@@ -116,5 +151,18 @@ public sealed class LoggingHostTests
         }
 
         return new ConfigurationBuilder().AddInMemoryCollection(all).Build();
+    }
+
+    private sealed class ThrowingExtension : ILoggingHostExtension
+    {
+        public bool Disposed { get; private set; }
+
+        public void ConfigureLogging(ILoggingBuilder logging) => throw new InvalidOperationException("provider broken");
+
+        public void WriteSessionHeader(ILogger logger)
+        {
+        }
+
+        public void Dispose() => Disposed = true;
     }
 }

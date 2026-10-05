@@ -10,7 +10,7 @@ using Xunit;
 
 namespace LogDemo.Logging.Tests;
 
-public sealed class CommandBaseTests
+public sealed class BaseCommandTests
 {
     private readonly FakeLogger logger = new FakeLogger();
 
@@ -104,7 +104,51 @@ public sealed class CommandBaseTests
         Assert.True(thrown.IsLogged());
     }
 
-    private sealed class TestAsyncCommand : AsyncCommandBase
+    [Fact]
+    public async Task Typed_parameter_reaches_the_command()
+    {
+        int received = 0;
+        TestTypedAsyncCommand command = new TestTypedAsyncCommand(this.logger, value => received = value);
+
+        command.Execute(7);
+        await command.ExecuteAsync(42);
+
+        Assert.Equal(42, received);
+        Assert.True(command.CanExecute(1));
+    }
+
+    [Fact]
+    public void Wrong_parameter_type_disables_the_command_instead_of_throwing()
+    {
+        TestTypedAsyncCommand command = new TestTypedAsyncCommand(this.logger, _ => { });
+
+        Assert.False(command.CanExecute("not an int"));
+        Assert.False(command.CanExecute(null)); // int cannot be null
+
+        command.Execute("not an int");
+        Assert.Equal(2002, this.logger.LatestRecord.Id.Id);
+    }
+
+    private sealed class TestTypedAsyncCommand : DelegateBaseAsyncCommand<int>
+    {
+        private readonly Action<int> body;
+
+        public TestTypedAsyncCommand(ILogger logger, Action<int> body)
+            : base(logger)
+        {
+            this.body = body;
+        }
+
+        protected override bool CanInvoke(int parameter) => parameter > 0;
+
+        protected override Task InvokeAsync(int parameter, CancellationToken cancellationToken)
+        {
+            this.body(parameter);
+            return Task.CompletedTask;
+        }
+    }
+
+    private sealed class TestAsyncCommand : DelegateBaseAsyncCommand
     {
         private readonly Func<CancellationToken, Task> body;
         private readonly Func<Exception, bool>? handle;
@@ -116,12 +160,12 @@ public sealed class CommandBaseTests
             this.handle = handle;
         }
 
-        protected override Task ExecuteCoreAsync(object? parameter, CancellationToken cancellationToken) => this.body(cancellationToken);
+        protected override Task InvokeAsync(object? parameter, CancellationToken cancellationToken) => this.body(cancellationToken);
 
         protected override bool TryHandleFailure(Exception exception) => this.handle?.Invoke(exception) ?? false;
     }
 
-    private sealed class TestSyncCommand : CommandBase
+    private sealed class TestSyncCommand : DelegateBaseCommand
     {
         private readonly Action? execute;
         private readonly Func<bool>? canExecute;
@@ -133,8 +177,8 @@ public sealed class CommandBaseTests
             this.canExecute = canExecute;
         }
 
-        protected override bool CanExecuteCore(object? parameter) => this.canExecute?.Invoke() ?? true;
+        protected override bool CanInvoke(object? parameter) => this.canExecute?.Invoke() ?? true;
 
-        protected override void ExecuteCore(object? parameter) => this.execute?.Invoke();
+        protected override void Invoke(object? parameter) => this.execute?.Invoke();
     }
 }

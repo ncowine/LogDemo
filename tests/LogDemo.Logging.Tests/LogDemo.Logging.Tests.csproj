@@ -13,6 +13,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\Common\LogDemo.Logging\LogDemo.Logging.csproj" />
     <ProjectReference Include="..\..\src\Common\LogDemo.Logging.Wpf\LogDemo.Logging.Wpf.csproj" />
+    <ProjectReference Include="..\..\src\Common\LogDemo.Logging.Observability\LogDemo.Logging.Observability.csproj" />
   </ItemGroup>
 
   <ItemGroup>
@@ -20,6 +21,7 @@
     <PackageReference Include="xunit" />
     <PackageReference Include="xunit.runner.visualstudio" />
     <PackageReference Include="Microsoft.Extensions.Diagnostics.Testing" />
+    <PackageReference Include="OpenTelemetry.Exporter.InMemory" />
   </ItemGroup>
 
 </Project>

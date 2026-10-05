@@ -1,0 +1,2 @@
+# Shell scripts run inside Linux containers; CRLF there fails with "set: illegal option -".
+*.sh text eol=lf

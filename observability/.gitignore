@@ -1,0 +1,2 @@
+# Holds the Grafana admin password in production.
+.env

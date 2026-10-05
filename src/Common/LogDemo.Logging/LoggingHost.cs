@@ -27,12 +27,19 @@ public sealed class LoggingHost : IDisposable
 {
     private readonly ILogger logger;
     private readonly Serilog.Core.Logger serilog;
+    private readonly ILoggingHostExtension? extension;
     private int disposed;
 
-    private LoggingHost(ILoggerFactory loggerFactory, Serilog.Core.Logger serilog, LogSession session, FileLoggingOptions options)
+    private LoggingHost(
+        ILoggerFactory loggerFactory,
+        Serilog.Core.Logger serilog,
+        ILoggingHostExtension? extension,
+        LogSession session,
+        FileLoggingOptions options)
     {
         LoggerFactory = loggerFactory;
         this.serilog = serilog;
+        this.extension = extension;
         Session = session;
         Options = options;
         this.logger = loggerFactory.CreateLogger("LogDemo.Logging.LoggingHost");
@@ -45,11 +52,21 @@ public sealed class LoggingHost : IDisposable
     public FileLoggingOptions Options { get; }
 
     /// <param name="configuration">
-    /// Root configuration. Uses <c>Logging</c> (standard level filters, hot-reloadable) and <c>FileLogging</c>.
+    /// Root configuration. Uses <c>Logging</c> (standard level filters, hot-reloadable) and <c>FileLogging</c>;
+    /// an extension may read its own section.
     /// </param>
-    /// <param name="applicationName">Used as the default file prefix.</param>
+    /// <param name="applicationName">Used as the default file prefix; passed on to the extension.</param>
     /// <param name="defaultDirectory">Used when <c>FileLogging:Directory</c> is empty.</param>
-    public static LoggingHost Create(IConfiguration configuration, string applicationName, string defaultDirectory)
+    /// <param name="applicationVersion">Passed on to the extension, see <see cref="AppPaths.Version"/>.</param>
+    /// <param name="extension">
+    /// Optional add-on such as central export, e.g. <c>OpenTelemetryExport.FromConfiguration</c>.
+    /// </param>
+    public static LoggingHost Create(
+        IConfiguration configuration,
+        string applicationName,
+        string defaultDirectory,
+        string? applicationVersion = null,
+        Func<LoggingHostContext, ILoggingHostExtension>? extension = null)
     {
         if (configuration is null)
         {
@@ -61,7 +78,7 @@ public sealed class LoggingHost : IDisposable
 
         FileLoggingOptions options = new FileLoggingOptions();
         configuration.GetSection(FileLoggingOptions.SectionName).Bind(options);
-        IReadOnlyList<string> warnings = options.Normalize(applicationName);
+        List<string> warnings = new List<string>(options.Normalize(applicationName));
 
         string requestedDirectory = ExpandDirectory(options.Directory, defaultDirectory);
         string directory = EnsureWritableDirectory(requestedDirectory, applicationName, out Exception? directoryError);
@@ -87,22 +104,56 @@ public sealed class LoggingHost : IDisposable
                 shared: false)
             .CreateLogger();
 
-        ILoggerFactory factory = Microsoft.Extensions.Logging.LoggerFactory.Create(builder =>
+        // An add-on must never stop the app: if it cannot start, the app runs with the file log only
+        // and the reason is the first warning in it.
+        ILoggingHostExtension? hostExtension = null;
+        Exception? extensionError = null;
+        if (extension is not null)
         {
-            builder.AddConfiguration(configuration.GetSection("Logging"));
+            try
+            {
+                hostExtension = extension(new LoggingHostContext(configuration, applicationName, applicationVersion ?? "unknown", session, warnings));
+            }
+            catch (Exception ex)
+            {
+                extensionError = ex;
+            }
+        }
 
-            // Not builder.AddSerilog(): that extension also adds a Trace filter rule for its provider,
-            // which silently overrides the Logging:LogLevel configuration.
-            // dispose: false because LoggerFactory never disposes provider *instances*; the host owns it.
-            builder.AddProvider(new SerilogLoggerProvider(serilog, dispose: false));
-            builder.AddDebug(); // Visual Studio Output window; no-op when no debugger is attached.
-        });
+        ILoggerFactory factory;
+        try
+        {
+            factory = Microsoft.Extensions.Logging.LoggerFactory.Create(builder =>
+            {
+                builder.AddConfiguration(configuration.GetSection("Logging"));
 
-        LoggingHost host = new LoggingHost(factory, serilog, session, options);
+                // Not builder.AddSerilog(): that extension also adds a Trace filter rule for its provider,
+                // which silently overrides the Logging:LogLevel configuration.
+                // dispose: false because LoggerFactory never disposes provider *instances*; the host owns it.
+                builder.AddProvider(new SerilogLoggerProvider(serilog, dispose: false));
+                builder.AddDebug(); // Visual Studio Output window; no-op when no debugger is attached.
+
+                hostExtension?.ConfigureLogging(builder);
+            });
+        }
+        catch
+        {
+            // Release the session file, so the caller's crash handling (or a retry) is not locked out of it.
+            hostExtension?.Dispose();
+            serilog.Dispose();
+            throw;
+        }
+
+        LoggingHost host = new LoggingHost(factory, serilog, hostExtension, session, options);
 
         if (directoryError is not null)
         {
             host.logger.DirectoryFallback(requestedDirectory, directory, directoryError);
+        }
+
+        if (extensionError is not null)
+        {
+            host.logger.ExtensionFailed(extensionError);
         }
 
         foreach (string warning in warnings)
@@ -143,6 +194,7 @@ public sealed class LoggingHost : IDisposable
             processId,
             Session.SessionId);
         this.logger.LogFileInfo(Session.LogFilePath, Options.RetentionDays);
+        this.extension?.WriteSessionHeader(this.logger);
     }
 
     /// <summary>Last line of a normal session. Its absence in a log file means the process died.</summary>
@@ -168,12 +220,16 @@ public sealed class LoggingHost : IDisposable
         });
     }
 
-    /// <summary>Flushes and closes the log file. Safe to call more than once and from any thread.</summary>
+    /// <summary>
+    /// Shuts down the extension (central export sends what is still queued, a couple of seconds at most),
+    /// then flushes and closes the log file. Safe to call more than once and from any thread.
+    /// </summary>
     public void Dispose()
     {
         if (Interlocked.Exchange(ref this.disposed, 1) == 0)
         {
             LoggerFactory.Dispose();
+            this.extension?.Dispose();
             this.serilog.Dispose(); // flushes and closes the file
         }
     }

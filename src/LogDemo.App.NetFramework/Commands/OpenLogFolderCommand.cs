@@ -9,7 +9,7 @@ using Microsoft.Extensions.Logging;
 namespace LogDemo.App.NetFramework.Commands;
 
 /// <summary>Opens Explorer on the current log file - the first thing support asks for.</summary>
-public sealed class OpenLogFolderCommand : CommandBase
+public sealed class OpenLogFolderCommand : DelegateBaseCommand
 {
     private readonly LogSession session;
     private readonly IShellLauncher shell;
@@ -27,7 +27,7 @@ public sealed class OpenLogFolderCommand : CommandBase
         this.notifications = notifications ?? throw new ArgumentNullException(nameof(notifications));
     }
 
-    protected override void ExecuteCore(object? parameter)
+    protected override void Invoke(object? parameter)
     {
         this.shell.RevealFile(this.session.LogFilePath);
         Logger.LogFolderOpened(this.session.LogDirectory);

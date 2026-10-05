@@ -8,6 +8,7 @@ using LogDemo.App.NetFramework.Services;
 using LogDemo.App.NetFramework.ViewModels;
 using LogDemo.App.NetFramework.Views;
 using LogDemo.Logging;
+using LogDemo.Logging.Observability;
 using LogDemo.Logging.Wpf;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
@@ -44,7 +45,12 @@ public partial class App : PrismApplication
 
         this.paths = new AppPaths(entryAssembly);
         this.configuration = configurationLoader.Build(this.paths, "LOGDEMO_");
-        this.logging = LoggingHost.Create(this.configuration, ApplicationName, this.paths.DefaultLogDirectory);
+        this.logging = LoggingHost.Create(
+            this.configuration,
+            ApplicationName,
+            this.paths.DefaultLogDirectory,
+            this.paths.Version,
+            OpenTelemetryExport.FromConfiguration);
         this.logger = this.logging.LoggerFactory.CreateLogger<App>();
         this.exceptionHandler = GlobalExceptionHandler.Install(this, this.logging);
 

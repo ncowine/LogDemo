@@ -20,11 +20,15 @@ public sealed class AppPaths
         string company = entryAssembly.GetCustomAttribute<AssemblyCompanyAttribute>()?.Company ?? "Company";
         string product = entryAssembly.GetCustomAttribute<AssemblyProductAttribute>()?.Product ?? entryAssembly.GetName().Name ?? "App";
 
+        Version = GetVersion(entryAssembly);
         DataDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), company, product);
-        DefaultLogDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), product, GetVersion(entryAssembly));
+        DefaultLogDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), product, Version);
         UserSettingsFile = Path.Combine(DataDirectory, "appsettings.user.json");
         AppSettingsFile = Path.Combine(AppContext.BaseDirectory, "appsettings.json");
     }
+
+    /// <summary>The app version without build metadata, e.g. <c>1.2.0</c>. Safe to use as a folder name.</summary>
+    public string Version { get; }
 
     /// <summary><c>%LOCALAPPDATA%\{Company}\{Product}</c></summary>
     public string DataDirectory { get; }

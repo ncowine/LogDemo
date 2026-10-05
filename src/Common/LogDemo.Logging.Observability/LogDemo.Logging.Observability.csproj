@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Optional central export of logs and traces over OTLP/HTTP to the OpenTelemetry Collector.
+    Only apps that push to the observability stack reference this, so the OpenTelemetry packages stay out
+    of the others. Plugs into LoggingHost.Create via OpenTelemetryExport.FromConfiguration.
+  -->
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <RootNamespace>LogDemo.Logging.Observability</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\LogDemo.Logging\LogDemo.Logging.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="OpenTelemetry" />
+    <PackageReference Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.Http" />
+    <!-- Direct reference so the [LoggerMessage] source generator runs in this project. -->
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="LogDemo.Logging.Tests" />
+  </ItemGroup>
+
+</Project>

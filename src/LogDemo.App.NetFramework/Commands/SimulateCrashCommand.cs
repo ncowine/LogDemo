@@ -14,7 +14,7 @@ namespace LogDemo.App.NetFramework.Commands;
 /// <item><c>"Thread"</c> - throws on a worker thread; .NET terminates the process, but the log is flushed first.</item>
 /// </list>
 /// </summary>
-public sealed class SimulateCrashCommand : CommandBase
+public sealed class SimulateCrashCommand : DelegateBaseCommand<string>
 {
     public const string UiThread = "UI";
     public const string WorkerThread = "Thread";
@@ -27,9 +27,9 @@ public sealed class SimulateCrashCommand : CommandBase
         this.notifications = notifications ?? throw new ArgumentNullException(nameof(notifications));
     }
 
-    protected override bool CanExecuteCore(object? parameter) => parameter is UiThread or WorkerThread;
+    protected override bool CanInvoke(string parameter) => parameter is UiThread or WorkerThread;
 
-    protected override void ExecuteCore(object? parameter)
+    protected override void Invoke(string parameter)
     {
         if (parameter is WorkerThread)
         {

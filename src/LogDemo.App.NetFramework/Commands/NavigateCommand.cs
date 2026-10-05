@@ -7,7 +7,7 @@ using Prism.Regions;
 namespace LogDemo.App.NetFramework.Commands;
 
 /// <summary>Navigates the main content region. Parameter: the view name (see <see cref="ViewNames"/>).</summary>
-public sealed class NavigateCommand : CommandBase
+public sealed class NavigateCommand : DelegateBaseCommand<string>
 {
     private readonly IRegionManager regionManager;
 
@@ -17,12 +17,10 @@ public sealed class NavigateCommand : CommandBase
         this.regionManager = regionManager ?? throw new ArgumentNullException(nameof(regionManager));
     }
 
-    protected override bool CanExecuteCore(object? parameter) => parameter is string target && target.Length > 0;
+    protected override bool CanInvoke(string target) => !string.IsNullOrEmpty(target);
 
-    protected override void ExecuteCore(object? parameter)
+    protected override void Invoke(string target)
     {
-        string target = (string)parameter!;
-
         // Prism reports navigation problems through the callback instead of throwing,
         // so without this they would never show up anywhere.
         this.regionManager.RequestNavigate(RegionNames.Content, target, result =>

@@ -8,6 +8,8 @@ on **.NET Framework 4.7.2**, **.NET 8** and **.NET 10**, all built from the same
 - log levels can change **while the app runs** (edit `appsettings.json`, no restart)
 - every command execution gets a correlation scope, including the service calls it makes and code after `await`s
 - global exception handling that logs once, keeps the UI alive when it can, and flushes the log before a crash
+- errors and crashes reach Grafana without anyone reporting them: logs and traces go over OTLP to an
+  OpenTelemetry Collector, with user, machine, version and session on every record ([`observability/`](observability))
 
 ## Solution layout
 
@@ -22,10 +24,17 @@ src/
       LogSession.cs               the current run: session id, file path
       LogRetentionCleaner.cs      deletes expired sessions, prefix-scoped, never the current one
       LoggingLog.cs               the core's [LoggerMessage] definitions
+      ILoggingHostExtension.cs    hook for optional add-ons such as central export
+      AppTracing.cs               the apps' ActivitySource; one span per command execution (free when nobody listens)
+    LogDemo.Logging.Observability/  netstandard2.0   opt-in central export; the only project with OpenTelemetry packages
+      OpenTelemetryExport.cs      the extension: LoggingHost.Create(..., OpenTelemetryExport.FromConfiguration)
+      TelemetryPipeline.cs        OTLP export of logs + traces (OpenTelemetry SDK), bounded shutdown
+      TelemetryOptions.cs         "Telemetry" config section: collector endpoint, environment
+      Session*Processor.cs        user.name + session.id on every exported log record and span
     LogDemo.Logging.Wpf/        net472; net8.0-windows; net10.0-windows
       GlobalExceptionHandler.cs   Dispatcher / AppDomain / TaskScheduler handlers, startup failures
       PrismLoggingExtensions.cs   RegisterLogging (ILogger<T> in DryIoc), container validation
-      Commands/                   LoggingCommandBase, CommandBase, AsyncCommandBase
+      Commands/                   BaseCommand, DelegateBaseCommand<T>, DelegateBaseAsyncCommand<T>
       WpfLog.cs                   the WPF layer's [LoggerMessage] definitions
   LogDemo.App.NetFramework/   net472 exe
   LogDemo.App.Net/            net8.0-windows; net10.0-windows exe
@@ -33,6 +42,8 @@ src/
                               ViewModels/, Views/, Services/, Logging/AppLog.cs, appsettings.json
 tests/
   LogDemo.Logging.Tests/      xUnit for the Common projects, runs on net472, net8 and net10
+observability/                server side, as an add-on to the existing Grafana stack: OpenTelemetry
+                              Collector, Grafana dashboard and alert rules (see its README)
 ```
 
 The two apps deliberately share nothing but `src/Common`: each one owns its views, view models,
@@ -50,8 +61,9 @@ dotnet run --project src/LogDemo.App.Net -f net10.0-windows
 dotnet test
 ```
 
-Logs go to `%LOCALAPPDATA%\Contoso\LogDemo\Logs`. The **Diagnostics** page shows the current file, has an
-*Open log folder* button, and lets you trigger handled errors, unhandled UI exceptions and a
+Logs go to `Documents\LogDemo\{version}` (e.g. `Documents\LogDemo\1.0.0`). With the collector from
+[`observability/`](observability) running, they also show up in Grafana. The **Diagnostics** page shows the
+current file, has an *Open log folder* button, and lets you trigger handled errors, unhandled UI exceptions and a
 worker-thread crash.
 
 ## Configuration
@@ -67,6 +79,9 @@ variables with the `LOGDEMO_` prefix. Later sources win.
       "Default": "Information",
       "LogDemo.App.Net.Commands": "Information",   // most specific category prefix wins
       "Microsoft": "Warning"
+    },
+    "OpenTelemetry": {               // what is sent to the collector; without it, the rules above
+      "LogLevel": { "Default": "Information", "Microsoft": "Warning" }
     }
   },
   "FileLogging": {                   // read at startup
@@ -75,6 +90,11 @@ variables with the `LOGDEMO_` prefix. Later sources win.
     "RetentionDays": 7,              // 1..365
     "MaxRetainedFiles": 100,         // guards against crash loops; 0 = unlimited
     "MaxFileSizeMB": 20              // a session rolls to _001, _002... after this size
+  },
+  "Telemetry": {                     // read at startup
+    "Endpoint": "http://127.0.0.1:4318",   // OpenTelemetry Collector (OTLP/HTTP); empty = file only
+    "Environment": "development",    // deployment.environment: production, test, ...
+    "Headers": null                  // optional "key=value,..." if the collector checks one
   }
 }
 ```
@@ -124,8 +144,8 @@ measure a problem, because it trades crash safety for throughput.
 consistent wording in one place, and no allocations when a level is disabled. This works on net472 too.
 `WriteSampleLogsCommand` uses plain `LogInformation(...)` templates for comparison.
 
-**Commands as classes.** `LoggingCommandBase` wraps every execution in a scope, times it, and routes
-failures through one path:
+**Commands as classes.** `BaseCommand` wraps every execution in a scope and a trace span, times
+it, and routes failures through one path. Failed executions (handled or not) mark the span as an error:
 
 | Outcome | Logged as | Then |
 |---|---|---|
@@ -134,7 +154,11 @@ failures through one path:
 | expected failure (`TryHandleFailure` returns `true`) | Warning + exception | command informs the user (inline or dialog) |
 | unexpected failure | Error + exception, marked as logged | rethrown to the global handler, which shows a dialog but doesn't log the stack trace again |
 
-`AsyncCommandBase` also blocks re-entry while running, supports `Cancel()` (called when you navigate away
+Derive from `DelegateBaseCommand<T>` / `DelegateBaseAsyncCommand<T>` to get a typed `CommandParameter`
+(e.g. `NavigateCommand : DelegateBaseCommand<string>`), or from the non-generic `DelegateBaseCommand` /
+`DelegateBaseAsyncCommand` when the parameter is unused. A parameter of the wrong type disables the command.
+
+`DelegateBaseAsyncCommand<T>` also blocks re-entry while running, supports `Cancel()` (called when you navigate away
 from Customers), and exposes an awaitable `ExecuteAsync` for tests.
 
 Commands that need their view model get it through DryIoc's built-in **`Func<TViewModel, TCommand>`**
@@ -154,7 +178,7 @@ public CustomersViewModel(
 | Source | Handling |
 |---|---|
 | `DispatcherUnhandledException` (UI thread) | log, dialog, keep running. After 5 in 10 s (e.g. an exception during layout that repeats every frame) log critical and shut down |
-| `AppDomain.UnhandledException` (other threads) | log critical, then **dispose the logging host synchronously** so the file is flushed before the runtime kills the process |
+| `AppDomain.UnhandledException` (other threads) | log critical, then **dispose the logging host synchronously**: the last batch goes to the collector (2 s at most) and the file is flushed before the runtime kills the process |
 | `TaskScheduler.UnobservedTaskException` | log error, mark as observed |
 
 **No personal data in logs.** Customers are logged by id only, never by name or e-mail (see
@@ -162,6 +186,25 @@ public CustomersViewModel(
 
 **Container validation at startup.** `OnInitialized` runs DryIoc's `Validate()`, so a missing registration
 fails at startup with a clear log entry instead of when a user first clicks something.
+
+**Central telemetry is best effort, the file is the record.** Export runs in the background (2 s
+batches), never on the UI thread, and gives up after 2 s for logs and 1 s for traces at shutdown, so a
+dead collector never delays closing the app. `TelemetryPipeline` owns a separate `OpenTelemetrySdk` for that
+reason: `ILoggingBuilder.AddOpenTelemetry()` offers no shutdown deadline. The SDK's logs reach the app's
+`ILoggerFactory` through a small provider with the `OpenTelemetry` alias, so the standard
+`Logging:OpenTelemetry:LogLevel` section filters the export, hot reload included.
+
+**Export is opt-in per app.** It lives in `LogDemo.Logging.Observability`, so an app that only writes the
+file references `LogDemo.Logging` (+ `.Wpf`) and gets no OpenTelemetry packages. To push to the stack,
+reference the Observability project and pass its extension to the host:
+
+```csharp
+this.logging = LoggingHost.Create(configuration, ApplicationName, paths.DefaultLogDirectory, paths.Version,
+    OpenTelemetryExport.FromConfiguration);
+```
+
+Without it, a `Telemetry` section in appsettings.json is simply ignored. Command spans still go through
+`AppTracing`, which costs nothing when no exporter listens.
 
 ## Pitfalls found while building this (with regression tests)
 
@@ -175,10 +218,22 @@ fails at startup with a clear log entry instead of when a user first clicks some
 3. **Config hot reload can crash the process.** If `appsettings.json` is saved with a syntax error, the
    reload throws on a thread-pool thread. `SetFileLoadExceptionHandler` makes it ignore the bad file and
    log a warning instead.
+4. **The OpenTelemetry SDK's own logger factory drops Debug.** Even with `Logging:OpenTelemetry:LogLevel`
+   at Debug, nothing below Information was exported until the SDK's factory was told to pass everything
+   (filtering happens in the app's factory). Covered by
+   `TelemetryTests.Logging_OpenTelemetry_section_filters_the_export_only`.
+5. **`localhost` costs 2 s on Windows.** It resolves to IPv6 first, and Windows retries a refused
+   connection for about 2 s, which used up the whole shutdown budget before the IPv4 fallback. The
+   default endpoint is `127.0.0.1`.
+6. **`service.instance.id` is a Loki index label.** `AddService()` generates one per process by default,
+   which on desktops means a new Loki stream per app start. The apps turn it off and the collector
+   deletes it. Covered by `TelemetryTests.Exported_logs_carry_user_session_scopes_and_resource`.
+7. **Grafana 11.5's rule-group PUT can't create rules.** It answers 500 for a uid it doesn't know yet, so
+   `observability/grafana/provision.sh` creates new rules one by one first, then PUTs the group.
 
 ## Where to go next
 
 - Add machine-readable output with `Serilog.Formatting.Compact` (CLEF), next to or instead of the text file.
-- Ship logs centrally (Seq, Application Insights, OpenTelemetry) by adding another provider in
-  `LoggingHost.Create`. App code doesn't change.
+- On the next start after a crash, send the tail of the previous session's file, for the rare crash
+  that kills the process before the last batch leaves.
 - Add a "Send logs to support" command that zips `LogDirectory`.

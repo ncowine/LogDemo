@@ -15,6 +15,9 @@ internal static partial class LoggingLog
     [LoggerMessage(101, LogLevel.Warning, "Log directory {Requested} is not usable, falling back to {Fallback}")]
     public static partial void DirectoryFallback(this ILogger logger, string requested, string fallback, Exception exception);
 
+    [LoggerMessage(102, LogLevel.Warning, "Logging extension could not be started, continuing with the log file only")]
+    public static partial void ExtensionFailed(this ILogger logger, Exception exception);
+
     [LoggerMessage(110, LogLevel.Debug, "Deleted old log file {FileName} (last written {LastWriteUtc:u})")]
     public static partial void RetentionFileDeleted(this ILogger logger, string fileName, DateTime lastWriteUtc);
 

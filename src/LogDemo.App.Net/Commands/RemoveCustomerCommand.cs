@@ -10,7 +10,7 @@ using Microsoft.Extensions.Logging;
 
 namespace LogDemo.App.Net.Commands;
 
-public sealed class RemoveCustomerCommand : AsyncCommandBase
+public sealed class RemoveCustomerCommand : DelegateBaseAsyncCommand
 {
     private readonly CustomersViewModel viewModel;
     private readonly ICustomerService customerService;
@@ -28,9 +28,9 @@ public sealed class RemoveCustomerCommand : AsyncCommandBase
         this.notifications = notifications ?? throw new ArgumentNullException(nameof(notifications));
     }
 
-    protected override bool CanStart(object? parameter) => this.viewModel.SelectedCustomer is not null && !this.viewModel.IsBusy;
+    protected override bool CanInvoke(object? parameter) => this.viewModel.SelectedCustomer is not null && !this.viewModel.IsBusy;
 
-    protected override async Task ExecuteCoreAsync(object? parameter, CancellationToken cancellationToken)
+    protected override async Task InvokeAsync(object? parameter, CancellationToken cancellationToken)
     {
         Customer customer = this.viewModel.SelectedCustomer!;
 
