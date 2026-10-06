@@ -55,4 +55,9 @@ public abstract class DelegateBaseCommand : DelegateBaseCommand<object?>
         : base(logger)
     {
     }
+
+    /// <summary>Runs the command from code; the parameter is ignored, so none has to be passed.</summary>
+    public void Execute() => Execute(null);
+
+    public bool CanExecute() => CanExecute(null);
 }
