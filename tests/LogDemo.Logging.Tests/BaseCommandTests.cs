@@ -19,7 +19,7 @@ public sealed class BaseCommandTests
     {
         TestAsyncCommand command = new TestAsyncCommand(this.logger, _ => Task.CompletedTask);
 
-        await command.ExecuteAsync(null);
+        await command.ExecuteAsync();
 
         FakeLogRecord completed = this.logger.LatestRecord;
         Assert.Equal(2001, completed.Id.Id);
@@ -36,7 +36,7 @@ public sealed class BaseCommandTests
             _ => throw new TimeoutException("backend down"),
             handle: ex => ex is TimeoutException);
 
-        await command.ExecuteAsync(null);
+        await command.ExecuteAsync();
 
         Assert.Equal(LogLevel.Warning, this.logger.LatestRecord.Level);
         Assert.IsType<TimeoutException>(this.logger.LatestRecord.Exception);
@@ -48,7 +48,7 @@ public sealed class BaseCommandTests
     {
         TestAsyncCommand command = new TestAsyncCommand(this.logger, _ => throw new InvalidOperationException("bug"));
 
-        InvalidOperationException thrown = await Assert.ThrowsAsync<InvalidOperationException>(() => command.ExecuteAsync(null));
+        InvalidOperationException thrown = await Assert.ThrowsAsync<InvalidOperationException>(() => command.ExecuteAsync());
 
         Assert.Equal(LogLevel.Error, this.logger.LatestRecord.Level);
         Assert.True(thrown.IsLogged()); // the global handler won't log the stack trace a second time
@@ -60,7 +60,7 @@ public sealed class BaseCommandTests
     {
         TestAsyncCommand command = new TestAsyncCommand(this.logger, token => Task.Delay(TimeSpan.FromSeconds(10), token));
 
-        Task running = command.ExecuteAsync(null);
+        Task running = command.ExecuteAsync();
         command.Cancel();
         await running;
 
@@ -74,14 +74,14 @@ public sealed class BaseCommandTests
         TaskCompletionSource<bool> gate = new TaskCompletionSource<bool>();
         TestAsyncCommand command = new TestAsyncCommand(this.logger, _ => gate.Task);
 
-        Task running = command.ExecuteAsync(null);
+        Task running = command.ExecuteAsync();
 
         Assert.True(command.IsExecuting);
-        Assert.False(command.CanExecute(null));
+        Assert.False(command.CanExecute());
 
         gate.SetResult(true);
         await running;
-        Assert.True(command.CanExecute(null));
+        Assert.True(command.CanExecute());
     }
 
     [Fact]
@@ -89,7 +89,7 @@ public sealed class BaseCommandTests
     {
         TestSyncCommand command = new TestSyncCommand(this.logger, canExecute: () => throw new InvalidOperationException("bad state"));
 
-        Assert.False(command.CanExecute(null));
+        Assert.False(command.CanExecute());
         Assert.Equal(2006, this.logger.LatestRecord.Id.Id);
     }
 
@@ -98,7 +98,7 @@ public sealed class BaseCommandTests
     {
         TestSyncCommand command = new TestSyncCommand(this.logger, execute: () => throw new InvalidOperationException("bug"));
 
-        InvalidOperationException thrown = Assert.Throws<InvalidOperationException>(() => command.Execute(null));
+        InvalidOperationException thrown = Assert.Throws<InvalidOperationException>(() => command.Execute());
 
         Assert.Equal(LogLevel.Error, this.logger.LatestRecord.Level);
         Assert.True(thrown.IsLogged());

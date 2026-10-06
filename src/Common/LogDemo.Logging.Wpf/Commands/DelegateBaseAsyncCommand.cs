@@ -92,4 +92,9 @@ public abstract class DelegateBaseAsyncCommand : DelegateBaseAsyncCommand<object
         : base(logger)
     {
     }
+
+    /// <summary>Awaitable run from code; the parameter is ignored, so none has to be passed.</summary>
+    public Task ExecuteAsync() => ExecuteAsync(null);
+
+    public bool CanExecute() => CanExecute(null);
 }

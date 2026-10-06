@@ -98,12 +98,13 @@ public sealed class CustomersViewModel : BindableBase, INavigationAware
         LastRefreshed = DateTime.Now;
     }
 
-    void INavigationAware.OnNavigatedTo(NavigationContext navigationContext)
+    // Prism calls this synchronously, so async void is the boundary; unhandled failures reach the Dispatcher handler.
+    async void INavigationAware.OnNavigatedTo(NavigationContext navigationContext)
     {
         this.logger.ViewActivated(nameof(CustomersViewModel));
         if (LastRefreshed is null)
         {
-            LoadCommand.Execute(null);
+            await LoadCommand.ExecuteAsync();
         }
     }
 
