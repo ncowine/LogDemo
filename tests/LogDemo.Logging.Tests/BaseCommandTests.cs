@@ -6,15 +6,18 @@ using System.Threading.Tasks;
 using LogDemo.Logging.Wpf.Commands;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Testing;
-using Xunit;
+using NUnit.Framework;
 
 namespace LogDemo.Logging.Tests;
 
 public sealed class BaseCommandTests
 {
-    private readonly FakeLogger logger = new FakeLogger();
+    private FakeLogger logger = null!;
 
-    [Fact]
+    [SetUp]
+    public void SetUp() => this.logger = new FakeLogger();
+
+    [Test]
     public async Task Success_is_logged_with_elapsed_time_inside_a_command_scope()
     {
         TestAsyncCommand command = new TestAsyncCommand(this.logger, _ => Task.CompletedTask);
@@ -22,13 +25,13 @@ public sealed class BaseCommandTests
         await command.ExecuteAsync();
 
         FakeLogRecord completed = this.logger.LatestRecord;
-        Assert.Equal(2001, completed.Id.Id);
-        Assert.Equal(LogLevel.Debug, completed.Level);
-        Assert.Contains(completed.Scopes, s => s is IEnumerable<KeyValuePair<string, object?>> pairs
-            && pairs.Any(p => p.Key == "CommandName" && Equals(p.Value, nameof(TestAsyncCommand))));
+        Assert.That(completed.Id.Id, Is.EqualTo(2001));
+        Assert.That(completed.Level, Is.EqualTo(LogLevel.Debug));
+        Assert.That(completed.Scopes, Has.Some.Matches<object?>(s => s is IEnumerable<KeyValuePair<string, object?>> pairs
+            && pairs.Any(p => p.Key == "CommandName" && Equals(p.Value, nameof(TestAsyncCommand)))));
     }
 
-    [Fact]
+    [Test]
     public async Task Handled_failure_is_logged_as_warning_and_not_rethrown()
     {
         TestAsyncCommand command = new TestAsyncCommand(
@@ -38,24 +41,24 @@ public sealed class BaseCommandTests
 
         await command.ExecuteAsync();
 
-        Assert.Equal(LogLevel.Warning, this.logger.LatestRecord.Level);
-        Assert.IsType<TimeoutException>(this.logger.LatestRecord.Exception);
-        Assert.False(command.IsExecuting);
+        Assert.That(this.logger.LatestRecord.Level, Is.EqualTo(LogLevel.Warning));
+        Assert.That(this.logger.LatestRecord.Exception, Is.TypeOf<TimeoutException>());
+        Assert.That(command.IsExecuting, Is.False);
     }
 
-    [Fact]
+    [Test]
     public async Task Unexpected_failure_is_logged_as_error_marked_and_rethrown()
     {
         TestAsyncCommand command = new TestAsyncCommand(this.logger, _ => throw new InvalidOperationException("bug"));
 
-        InvalidOperationException thrown = await Assert.ThrowsAsync<InvalidOperationException>(() => command.ExecuteAsync());
+        InvalidOperationException? thrown = await Assert.ThrowsAsync<InvalidOperationException>(() => command.ExecuteAsync());
 
-        Assert.Equal(LogLevel.Error, this.logger.LatestRecord.Level);
-        Assert.True(thrown.IsLogged()); // the global handler won't log the stack trace a second time
-        Assert.False(command.IsExecuting);
+        Assert.That(this.logger.LatestRecord.Level, Is.EqualTo(LogLevel.Error));
+        Assert.That(thrown!.IsLogged(), Is.True); // the global handler won't log the stack trace a second time
+        Assert.That(command.IsExecuting, Is.False);
     }
 
-    [Fact]
+    [Test]
     public async Task Cancellation_is_logged_as_information_not_as_error()
     {
         TestAsyncCommand command = new TestAsyncCommand(this.logger, token => Task.Delay(TimeSpan.FromSeconds(10), token));
@@ -64,11 +67,11 @@ public sealed class BaseCommandTests
         command.Cancel();
         await running;
 
-        Assert.Equal(2003, this.logger.LatestRecord.Id.Id);
-        Assert.Equal(LogLevel.Information, this.logger.LatestRecord.Level);
+        Assert.That(this.logger.LatestRecord.Id.Id, Is.EqualTo(2003));
+        Assert.That(this.logger.LatestRecord.Level, Is.EqualTo(LogLevel.Information));
     }
 
-    [Fact]
+    [Test]
     public async Task Async_command_cannot_run_twice_at_the_same_time()
     {
         TaskCompletionSource<bool> gate = new TaskCompletionSource<bool>();
@@ -76,35 +79,35 @@ public sealed class BaseCommandTests
 
         Task running = command.ExecuteAsync();
 
-        Assert.True(command.IsExecuting);
-        Assert.False(command.CanExecute());
+        Assert.That(command.IsExecuting, Is.True);
+        Assert.That(command.CanExecute(), Is.False);
 
         gate.SetResult(true);
         await running;
-        Assert.True(command.CanExecute());
+        Assert.That(command.CanExecute(), Is.True);
     }
 
-    [Fact]
+    [Test]
     public void Throwing_CanExecute_is_logged_and_treated_as_disabled()
     {
         TestSyncCommand command = new TestSyncCommand(this.logger, canExecute: () => throw new InvalidOperationException("bad state"));
 
-        Assert.False(command.CanExecute());
-        Assert.Equal(2006, this.logger.LatestRecord.Id.Id);
+        Assert.That(command.CanExecute(), Is.False);
+        Assert.That(this.logger.LatestRecord.Id.Id, Is.EqualTo(2006));
     }
 
-    [Fact]
+    [Test]
     public void Sync_command_failure_is_logged_once_and_rethrown()
     {
         TestSyncCommand command = new TestSyncCommand(this.logger, execute: () => throw new InvalidOperationException("bug"));
 
         InvalidOperationException thrown = Assert.Throws<InvalidOperationException>(() => command.Execute());
 
-        Assert.Equal(LogLevel.Error, this.logger.LatestRecord.Level);
-        Assert.True(thrown.IsLogged());
+        Assert.That(this.logger.LatestRecord.Level, Is.EqualTo(LogLevel.Error));
+        Assert.That(thrown.IsLogged(), Is.True);
     }
 
-    [Fact]
+    [Test]
     public async Task Typed_parameter_reaches_the_command()
     {
         int received = 0;
@@ -113,20 +116,20 @@ public sealed class BaseCommandTests
         command.Execute(7);
         await command.ExecuteAsync(42);
 
-        Assert.Equal(42, received);
-        Assert.True(command.CanExecute(1));
+        Assert.That(received, Is.EqualTo(42));
+        Assert.That(command.CanExecute(1), Is.True);
     }
 
-    [Fact]
+    [Test]
     public void Wrong_parameter_type_disables_the_command_instead_of_throwing()
     {
         TestTypedAsyncCommand command = new TestTypedAsyncCommand(this.logger, _ => { });
 
-        Assert.False(command.CanExecute("not an int"));
-        Assert.False(command.CanExecute(null)); // int cannot be null
+        Assert.That(command.CanExecute("not an int"), Is.False);
+        Assert.That(command.CanExecute(null), Is.False); // int cannot be null
 
         command.Execute("not an int");
-        Assert.Equal(2002, this.logger.LatestRecord.Id.Id);
+        Assert.That(this.logger.LatestRecord.Id.Id, Is.EqualTo(2002));
     }
 
     private sealed class TestTypedAsyncCommand : DelegateBaseAsyncCommand<int>

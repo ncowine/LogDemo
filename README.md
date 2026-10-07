@@ -41,7 +41,7 @@ src/
                               each app: App.xaml.cs (startup order, DI registrations), Commands/,
                               ViewModels/, Views/, Services/, Logging/AppLog.cs, appsettings.json
 tests/
-  LogDemo.Logging.Tests/      xUnit for the Common projects, runs on net472, net8 and net10
+  LogDemo.Logging.Tests/      NUnit + Moq for the Common projects, runs on net472, net8 and net10
 observability/                server side, as an add-on to the existing Grafana stack: OpenTelemetry
                               Collector, Grafana dashboard and alert rules (see its README)
 ```

@@ -1,20 +1,24 @@
 using System;
 using System.IO;
 using Microsoft.Extensions.Logging.Abstractions;
-using Xunit;
+using NUnit.Framework;
 
 namespace LogDemo.Logging.Tests;
 
-public sealed class LogRetentionCleanerTests : IDisposable
+public sealed class LogRetentionCleanerTests
 {
     private static readonly DateTime Now = new DateTime(2026, 9, 29, 12, 0, 0, DateTimeKind.Utc);
 
-    private readonly TempDirectory dir = new TempDirectory();
     private readonly LogRetentionCleaner cleaner = new LogRetentionCleaner(NullLogger<LogRetentionCleaner>.Instance);
+    private TempDirectory dir = null!;
 
-    public void Dispose() => this.dir.Dispose();
+    [SetUp]
+    public void SetUp() => this.dir = new TempDirectory();
 
-    [Fact]
+    [TearDown]
+    public void TearDown() => this.dir.Dispose();
+
+    [Test]
     public void Deletes_files_older_than_retention_and_keeps_recent_ones()
     {
         string expired = this.dir.CreateFile("App_20260920_080000_1.log", Now.AddDays(-9));
@@ -22,12 +26,12 @@ public sealed class LogRetentionCleanerTests : IDisposable
 
         RetentionResult result = this.cleaner.Clean(CreateSession(), retentionDays: 7, maxRetainedFiles: 0, Now);
 
-        Assert.False(File.Exists(expired));
-        Assert.True(File.Exists(recent));
-        Assert.Equal(1, result.Deleted);
+        Assert.That(File.Exists(expired), Is.False);
+        Assert.That(File.Exists(recent), Is.True);
+        Assert.That(result.Deleted, Is.EqualTo(1));
     }
 
-    [Fact]
+    [Test]
     public void Never_deletes_the_current_session_including_rolled_parts()
     {
         LogSession session = CreateSession();
@@ -36,11 +40,11 @@ public sealed class LogRetentionCleanerTests : IDisposable
 
         this.cleaner.Clean(session, retentionDays: 1, maxRetainedFiles: 1, Now);
 
-        Assert.True(File.Exists(current));
-        Assert.True(File.Exists(rolled));
+        Assert.That(File.Exists(current), Is.True);
+        Assert.That(File.Exists(rolled), Is.True);
     }
 
-    [Fact]
+    [Test]
     public void Ignores_files_of_other_applications_sharing_the_folder()
     {
         string otherApp = this.dir.CreateFile("AppFx_20260101_080000_1.log", Now.AddDays(-200));
@@ -48,11 +52,11 @@ public sealed class LogRetentionCleanerTests : IDisposable
 
         this.cleaner.Clean(CreateSession(), retentionDays: 7, maxRetainedFiles: 0, Now);
 
-        Assert.True(File.Exists(otherApp));
-        Assert.True(File.Exists(unrelated));
+        Assert.That(File.Exists(otherApp), Is.True);
+        Assert.That(File.Exists(unrelated), Is.True);
     }
 
-    [Fact]
+    [Test]
     public void Keeps_only_the_newest_files_when_over_the_count_limit()
     {
         string newest = this.dir.CreateFile("App_20260929_080000_3.log", Now.AddHours(-1));
@@ -61,19 +65,19 @@ public sealed class LogRetentionCleanerTests : IDisposable
 
         this.cleaner.Clean(CreateSession(), retentionDays: 7, maxRetainedFiles: 2, Now);
 
-        Assert.True(File.Exists(newest));
-        Assert.True(File.Exists(middle));
-        Assert.False(File.Exists(oldest));
+        Assert.That(File.Exists(newest), Is.True);
+        Assert.That(File.Exists(middle), Is.True);
+        Assert.That(File.Exists(oldest), Is.False);
     }
 
-    [Fact]
+    [Test]
     public void Missing_directory_is_not_an_error()
     {
         LogSession session = new LogSession("s", Path.Combine(this.dir.Path, "missing"), "App", DateTimeOffset.Now, 1);
 
         RetentionResult result = this.cleaner.Clean(session, 7, 0, Now);
 
-        Assert.Equal(0, result.Scanned);
+        Assert.That(result.Scanned, Is.EqualTo(0));
     }
 
     private LogSession CreateSession() =>
