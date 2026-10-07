@@ -161,15 +161,16 @@ Derive from `DelegateBaseCommand<T>` / `DelegateBaseAsyncCommand<T>` to get a ty
 `DelegateBaseAsyncCommand<T>` also blocks re-entry while running, supports `Cancel()` (called when you navigate away
 from Customers), and exposes an awaitable `ExecuteAsync` for tests.
 
-Commands that need their view model get it through DryIoc's built-in **`Func<TViewModel, TCommand>`**
-factory. The view model is passed in and everything else (services, `ILogger<TCommand>`) comes from the
-container:
+Commands that need their view model are created with **`CommandFactory.Create<TCommand>(this)`**
+(`LogDemo.Logging.Wpf`), which resolves the (transient) command from Prism's `ContainerLocator`. The view model is
+passed in and everything else (services, `ILogger<TCommand>`) comes from the container, so the view model's
+constructor needs no factories. `CommandFactory.Create<TCommand>()` does the same for commands without an owner.
+It only creates `BaseCommand`s - services still come in through constructors:
 
 ```csharp
-public CustomersViewModel(
-    Func<CustomersViewModel, LoadCustomersCommand> loadCommandFactory, ...)
+public CustomersViewModel(ILogger<CustomersViewModel> logger)
 {
-    LoadCommand = loadCommandFactory(this);
+    LoadCommand = CommandFactory.Create<LoadCustomersCommand>(this);
 }
 ```
 
