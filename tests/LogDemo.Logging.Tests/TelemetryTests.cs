@@ -409,7 +409,7 @@ public sealed class TelemetryTests
         {
         }
 
-        protected override Task InvokeAsync(object? parameter, CancellationToken cancellationToken) =>
+        protected override Task InvokeAsync(CancellationToken cancellationToken) =>
             throw new TimeoutException("backend down");
 
         protected override bool TryHandleFailure(Exception exception) => exception is TimeoutException;

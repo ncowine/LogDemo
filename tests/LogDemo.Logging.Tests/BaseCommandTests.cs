@@ -160,7 +160,7 @@ public sealed class BaseCommandTests
             this.handle = handle;
         }
 
-        protected override Task InvokeAsync(object? parameter, CancellationToken cancellationToken) => this.body(cancellationToken);
+        protected override Task InvokeAsync(CancellationToken cancellationToken) => this.body(cancellationToken);
 
         protected override bool TryHandleFailure(Exception exception) => this.handle?.Invoke(exception) ?? false;
     }
@@ -177,8 +177,8 @@ public sealed class BaseCommandTests
             this.canExecute = canExecute;
         }
 
-        protected override bool CanInvoke(object? parameter) => this.canExecute?.Invoke() ?? true;
+        protected override bool CanInvoke() => this.canExecute?.Invoke() ?? true;
 
-        protected override void Invoke(object? parameter) => this.execute?.Invoke();
+        protected override void Invoke() => this.execute?.Invoke();
     }
 }

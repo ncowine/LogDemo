@@ -20,7 +20,7 @@ public sealed class WriteSampleLogsCommand : DelegateBaseCommand
     {
     }
 
-    protected override void Invoke(object? parameter)
+    protected override void Invoke()
     {
         Logger.LogTrace("Sample trace: very detailed diagnostics, normally off");
         Logger.LogDebug("Sample debug: developer details, e.g. {CacheHits} cache hits", 42);

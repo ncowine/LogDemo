@@ -97,4 +97,17 @@ public abstract class DelegateBaseAsyncCommand : DelegateBaseAsyncCommand<object
     public Task ExecuteAsync() => ExecuteAsync(null);
 
     public bool CanExecute() => CanExecute(null);
+
+    /// <summary>Additional conditions for starting; the "not already running" check is built in.</summary>
+    protected virtual bool CanInvoke() => true;
+
+    /// <summary>The command's work. Derived classes implement this instead of the parameterised overload.</summary>
+    protected abstract Task InvokeAsync(CancellationToken cancellationToken);
+
+    // The parameter is ignored: seal the object? overloads and route them to the parameterless ones,
+    // so derived classes only ever see (and are asked to implement) InvokeAsync(ct) / CanInvoke().
+    protected sealed override bool CanInvoke(object? parameter) => CanInvoke();
+
+    protected sealed override Task InvokeAsync(object? parameter, CancellationToken cancellationToken) =>
+        InvokeAsync(cancellationToken);
 }

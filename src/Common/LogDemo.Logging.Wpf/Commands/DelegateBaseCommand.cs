@@ -60,4 +60,16 @@ public abstract class DelegateBaseCommand : DelegateBaseCommand<object?>
     public void Execute() => Execute(null);
 
     public bool CanExecute() => CanExecute(null);
+
+    /// <summary>Additional conditions for running the command.</summary>
+    protected virtual bool CanInvoke() => true;
+
+    /// <summary>The command's work. Derived classes implement this instead of the parameterised overload.</summary>
+    protected abstract void Invoke();
+
+    // The parameter is ignored: seal the object? overloads and route them to the parameterless ones,
+    // so derived classes only ever see (and are asked to implement) Invoke() / CanInvoke().
+    protected sealed override bool CanInvoke(object? parameter) => CanInvoke();
+
+    protected sealed override void Invoke(object? parameter) => Invoke();
 }
