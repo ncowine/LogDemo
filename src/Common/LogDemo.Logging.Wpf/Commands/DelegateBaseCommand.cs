@@ -8,7 +8,7 @@ namespace LogDemo.Logging.Wpf.Commands;
 /// Base class for synchronous commands that take a <typeparamref name="T"/> parameter.
 /// Derived classes implement <see cref="Invoke"/>.
 /// </summary>
-public abstract class DelegateBaseCommand<T> : BaseCommand
+public abstract class DelegateBaseCommand<T> : BaseCommand, IDelegateBaseCommand<T>
 {
     protected DelegateBaseCommand(ILogger logger)
         : base(logger)
@@ -40,6 +40,11 @@ public abstract class DelegateBaseCommand<T> : BaseCommand
         }
     }
 
+    // Explicit: as public members they would duplicate Execute(object?) / CanExecute(object?) when T is object?.
+    void IDelegateBaseCommand<T>.Execute(T parameter) => Execute(parameter);
+
+    bool IDelegateBaseCommand<T>.CanExecute(T parameter) => CanExecute(parameter);
+
     protected virtual bool CanInvoke(T parameter) => true;
 
     protected abstract void Invoke(T parameter);
@@ -49,7 +54,7 @@ public abstract class DelegateBaseCommand<T> : BaseCommand
 }
 
 /// <summary>Base class for synchronous commands that ignore their parameter.</summary>
-public abstract class DelegateBaseCommand : DelegateBaseCommand<object?>
+public abstract class DelegateBaseCommand : DelegateBaseCommand<object?>, IDelegateBaseCommand
 {
     protected DelegateBaseCommand(ILogger logger)
         : base(logger)

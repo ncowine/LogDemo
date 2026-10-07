@@ -132,6 +132,68 @@ public sealed class BaseCommandTests
         Assert.That(this.logger.LatestRecord.Id.Id, Is.EqualTo(2002));
     }
 
+    [Test]
+    public async Task Typed_async_command_works_through_its_interface()
+    {
+        int received = 0;
+        IDelegateBaseAsyncCommand<int> command = new TestTypedAsyncCommand(this.logger, value => received = value);
+
+        await command.ExecuteAsync(42);
+
+        Assert.That(received, Is.EqualTo(42));
+        Assert.That(command.CanExecute(1), Is.True);
+        Assert.That(command.CanExecute(0), Is.False);
+        Assert.That(command.Name, Is.EqualTo(nameof(TestTypedAsyncCommand)));
+    }
+
+    [Test]
+    public void Typed_sync_command_works_through_its_interface()
+    {
+        string? received = null;
+        IDelegateBaseCommand<string> command = new TestTypedSyncCommand(this.logger, value => received = value);
+
+        command.Execute("hello");
+
+        Assert.That(received, Is.EqualTo("hello"));
+        Assert.That(command.CanExecute("x"), Is.True);
+        Assert.That(command.CanExecute(string.Empty), Is.False);
+    }
+
+    [Test]
+    public async Task Parameterless_commands_work_through_their_interfaces()
+    {
+        int runs = 0;
+        IDelegateBaseCommand syncCommand = new TestSyncCommand(this.logger, execute: () => runs++);
+        IDelegateBaseAsyncCommand asyncCommand = new TestAsyncCommand(this.logger, _ =>
+        {
+            runs++;
+            return Task.CompletedTask;
+        });
+
+        syncCommand.Execute();
+        await asyncCommand.ExecuteAsync();
+
+        Assert.That(runs, Is.EqualTo(2));
+        Assert.That(syncCommand.CanExecute(), Is.True);
+        Assert.That(asyncCommand.CanExecute(), Is.True);
+        Assert.That(asyncCommand.IsExecuting, Is.False);
+    }
+
+    private sealed class TestTypedSyncCommand : DelegateBaseCommand<string>
+    {
+        private readonly Action<string> body;
+
+        public TestTypedSyncCommand(ILogger logger, Action<string> body)
+            : base(logger)
+        {
+            this.body = body;
+        }
+
+        protected override bool CanInvoke(string parameter) => !string.IsNullOrEmpty(parameter);
+
+        protected override void Invoke(string parameter) => this.body(parameter);
+    }
+
     private sealed class TestTypedAsyncCommand : DelegateBaseAsyncCommand<int>
     {
         private readonly Action<int> body;

@@ -12,7 +12,7 @@ namespace LogDemo.Logging.Wpf.Commands;
 /// runs inside a logging scope (command name + short correlation id) and a trace span, is timed, and
 /// failures are logged exactly once.
 /// </summary>
-public abstract class BaseCommand : ICommand
+public abstract class BaseCommand : IBaseCommand
 {
     private protected BaseCommand(ILogger logger)
     {
