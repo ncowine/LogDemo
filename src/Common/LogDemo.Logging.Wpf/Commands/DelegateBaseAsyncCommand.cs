@@ -11,7 +11,7 @@ namespace LogDemo.Logging.Wpf.Commands;
 /// while running (no double-clicks), supports cancellation, and never lets an exception escape silently
 /// from <c>async void</c>.
 /// </summary>
-public abstract class DelegateBaseAsyncCommand<T> : BaseCommand
+public abstract class DelegateBaseAsyncCommand<T> : BaseCommand, IDelegateBaseAsyncCommand<T>
 {
     private CancellationTokenSource? cancellation;
 
@@ -76,6 +76,9 @@ public abstract class DelegateBaseAsyncCommand<T> : BaseCommand
     /// <summary>Requests cancellation of the running execution, if any.</summary>
     public void Cancel() => this.cancellation?.Cancel();
 
+    // Explicit: as a public member it would duplicate CanExecute(object?) when T is object?.
+    bool IDelegateBaseAsyncCommand<T>.CanExecute(T parameter) => CanExecute(parameter);
+
     /// <summary>Additional conditions for starting; the "not already running" check is built in.</summary>
     protected virtual bool CanInvoke(T parameter) => true;
 
@@ -86,7 +89,7 @@ public abstract class DelegateBaseAsyncCommand<T> : BaseCommand
 }
 
 /// <summary>Base class for asynchronous commands that ignore their parameter.</summary>
-public abstract class DelegateBaseAsyncCommand : DelegateBaseAsyncCommand<object?>
+public abstract class DelegateBaseAsyncCommand : DelegateBaseAsyncCommand<object?>, IDelegateBaseAsyncCommand
 {
     protected DelegateBaseAsyncCommand(ILogger logger)
         : base(logger)
