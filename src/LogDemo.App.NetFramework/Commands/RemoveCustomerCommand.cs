@@ -28,9 +28,9 @@ public sealed class RemoveCustomerCommand : DelegateBaseAsyncCommand
         this.notifications = notifications ?? throw new ArgumentNullException(nameof(notifications));
     }
 
-    protected override bool CanInvoke(object? parameter) => this.viewModel.SelectedCustomer is not null && !this.viewModel.IsBusy;
+    protected override bool CanInvoke() => this.viewModel.SelectedCustomer is not null && !this.viewModel.IsBusy;
 
-    protected override async Task InvokeAsync(object? parameter, CancellationToken cancellationToken)
+    protected override async Task InvokeAsync(CancellationToken cancellationToken)
     {
         Customer customer = this.viewModel.SelectedCustomer!;
 

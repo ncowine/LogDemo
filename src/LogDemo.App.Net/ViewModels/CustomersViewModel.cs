@@ -4,6 +4,7 @@ using System.Collections.ObjectModel;
 using LogDemo.App.Net.Commands;
 using LogDemo.App.Net.Logging;
 using LogDemo.App.Net.Models;
+using LogDemo.Logging.Wpf.Commands;
 using Microsoft.Extensions.Logging;
 using Prism.Mvvm;
 using Prism.Regions;
@@ -11,9 +12,9 @@ using Prism.Regions;
 namespace LogDemo.App.Net.ViewModels;
 
 /// <summary>
-/// Holds state only. Behaviour lives in the command classes, which receive this view model through
-/// DryIoc's <c>Func&lt;CustomersViewModel, TCommand&gt;</c> factories - the view model is passed in,
-/// every other dependency (services, <c>ILogger&lt;TCommand&gt;</c>) is resolved by the container.
+/// Holds state only. Behaviour lives in the command classes, created through <see cref="CommandFactory"/> -
+/// this view model is passed in, every other dependency (services, <c>ILogger&lt;TCommand&gt;</c>) is resolved
+/// by the container.
 /// </summary>
 public sealed class CustomersViewModel : BindableBase, INavigationAware
 {
@@ -23,24 +24,11 @@ public sealed class CustomersViewModel : BindableBase, INavigationAware
     private string? errorMessage;
     private DateTime? lastRefreshed;
 
-    public CustomersViewModel(
-        Func<CustomersViewModel, LoadCustomersCommand> loadCommandFactory,
-        Func<CustomersViewModel, RemoveCustomerCommand> removeCommandFactory,
-        ILogger<CustomersViewModel> logger)
+    public CustomersViewModel(ILogger<CustomersViewModel> logger)
     {
-        if (loadCommandFactory is null)
-        {
-            throw new ArgumentNullException(nameof(loadCommandFactory));
-        }
-
-        if (removeCommandFactory is null)
-        {
-            throw new ArgumentNullException(nameof(removeCommandFactory));
-        }
-
         this.logger = logger ?? throw new ArgumentNullException(nameof(logger));
-        LoadCommand = loadCommandFactory(this);
-        RemoveCommand = removeCommandFactory(this);
+        LoadCommand = CommandFactory.Create<LoadCustomersCommand>(this);
+        RemoveCommand = CommandFactory.Create<RemoveCustomerCommand>(this);
     }
 
     public LoadCustomersCommand LoadCommand { get; }

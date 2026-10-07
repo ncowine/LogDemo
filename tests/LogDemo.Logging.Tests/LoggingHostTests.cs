@@ -5,13 +5,14 @@ using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
-using Xunit;
+using Moq;
+using NUnit.Framework;
 
 namespace LogDemo.Logging.Tests;
 
 public sealed class LoggingHostTests
 {
-    [Fact]
+    [Test]
     public void Writes_a_new_file_per_session_named_after_the_prefix()
     {
         using TempDirectory dir = new TempDirectory();
@@ -30,16 +31,16 @@ public sealed class LoggingHostTests
             second = host.Session.LogFilePath;
         }
 
-        Assert.NotEqual(first, second);
-        Assert.StartsWith("My-App_", Path.GetFileName(first)); // '_' is reserved as separator
-        Assert.Contains("hello from session one", File.ReadAllText(first));
+        Assert.That(second, Is.Not.EqualTo(first));
+        Assert.That(Path.GetFileName(first), Does.StartWith("My-App_")); // '_' is reserved as separator
+        Assert.That(File.ReadAllText(first), Does.Contain("hello from session one"));
     }
 
     /// <summary>
     /// Regression: Serilog's AddSerilog() adds a Trace rule for its provider that silently
     /// overrides Logging:LogLevel. The configured levels must be what reaches the file.
     /// </summary>
-    [Fact]
+    [Test]
     public void Honours_Logging_LogLevel_configuration()
     {
         using TempDirectory dir = new TempDirectory();
@@ -62,13 +63,13 @@ public sealed class LoggingHostTests
         }
 
         string content = File.ReadAllText(path);
-        Assert.DoesNotContain("debug-should-be-filtered", content);
-        Assert.Contains("info-should-be-written", content);
-        Assert.DoesNotContain("noisy-info-should-be-filtered", content);
-        Assert.Contains("noisy-warning-should-be-written", content);
+        Assert.That(content, Does.Not.Contain("debug-should-be-filtered"));
+        Assert.That(content, Does.Contain("info-should-be-written"));
+        Assert.That(content, Does.Not.Contain("noisy-info-should-be-filtered"));
+        Assert.That(content, Does.Contain("noisy-warning-should-be-written"));
     }
 
-    [Fact]
+    [Test]
     public void Invalid_settings_are_clamped_and_reported_instead_of_throwing()
     {
         using TempDirectory dir = new TempDirectory();
@@ -81,17 +82,17 @@ public sealed class LoggingHostTests
         string path;
         using (LoggingHost host = LoggingHost.Create(config, "App", dir.Path))
         {
-            Assert.Equal(1, host.Options.RetentionDays);
-            Assert.Equal(20, host.Options.MaxFileSizeMB);
+            Assert.That(host.Options.RetentionDays, Is.EqualTo(1));
+            Assert.That(host.Options.MaxFileSizeMB, Is.EqualTo(20));
             path = host.Session.LogFilePath;
         }
 
         string content = File.ReadAllText(path);
-        Assert.Contains("RetentionDays=0", content);
-        Assert.Contains("MaxFileSizeMB=-5", content);
+        Assert.That(content, Does.Contain("RetentionDays=0"));
+        Assert.That(content, Does.Contain("MaxFileSizeMB=-5"));
     }
 
-    [Fact]
+    [Test]
     public async Task Retention_runs_in_the_background_and_logs_its_result()
     {
         using TempDirectory dir = new TempDirectory();
@@ -104,11 +105,11 @@ public sealed class LoggingHostTests
             path = host.Session.LogFilePath;
         }
 
-        Assert.Single(Directory.GetFiles(dir.Path, "App_*.log"));
-        Assert.Contains("deleted 1", File.ReadLines(path).Single(l => l.Contains("Log retention")));
+        Assert.That(Directory.GetFiles(dir.Path, "App_*.log"), Has.Length.EqualTo(1));
+        Assert.That(File.ReadLines(path).Single(l => l.Contains("Log retention")), Does.Contain("deleted 1"));
     }
 
-    [Fact]
+    [Test]
     public void Extension_that_cannot_start_is_logged_and_the_app_keeps_its_file_log()
     {
         using TempDirectory dir = new TempDirectory();
@@ -122,20 +123,21 @@ public sealed class LoggingHostTests
         }
 
         string content = File.ReadAllText(path);
-        Assert.Contains("Logging extension could not be started", content);
-        Assert.Contains("exporter broken", content);
-        Assert.Contains("still logging", content);
+        Assert.That(content, Does.Contain("Logging extension could not be started"));
+        Assert.That(content, Does.Contain("exporter broken"));
+        Assert.That(content, Does.Contain("still logging"));
     }
 
-    [Fact]
+    [Test]
     public void Extension_failing_while_the_factory_is_built_is_cleaned_up_and_rethrown()
     {
         using TempDirectory dir = new TempDirectory();
-        ThrowingExtension extension = new ThrowingExtension();
+        Mock<ILoggingHostExtension> extension = new Mock<ILoggingHostExtension>();
+        extension.Setup(e => e.ConfigureLogging(It.IsAny<ILoggingBuilder>())).Throws(new InvalidOperationException("provider broken"));
 
-        Assert.Throws<InvalidOperationException>(() => LoggingHost.Create(Configuration(dir.Path), "App", dir.Path, "1.0.0", _ => extension));
+        Assert.Throws<InvalidOperationException>(() => LoggingHost.Create(Configuration(dir.Path), "App", dir.Path, "1.0.0", _ => extension.Object));
 
-        Assert.True(extension.Disposed);
+        extension.Verify(e => e.Dispose(), Times.Once);
         foreach (string file in Directory.GetFiles(dir.Path, "App_*.log"))
         {
             File.Delete(file); // throws if the session file were still open
@@ -151,18 +153,5 @@ public sealed class LoggingHostTests
         }
 
         return new ConfigurationBuilder().AddInMemoryCollection(all).Build();
-    }
-
-    private sealed class ThrowingExtension : ILoggingHostExtension
-    {
-        public bool Disposed { get; private set; }
-
-        public void ConfigureLogging(ILoggingBuilder logging) => throw new InvalidOperationException("provider broken");
-
-        public void WriteSessionHeader(ILogger logger)
-        {
-        }
-
-        public void Dispose() => Disposed = true;
     }
 }

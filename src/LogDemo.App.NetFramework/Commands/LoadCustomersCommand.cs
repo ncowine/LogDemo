@@ -26,9 +26,9 @@ public sealed class LoadCustomersCommand : DelegateBaseAsyncCommand
         this.customerService = customerService ?? throw new ArgumentNullException(nameof(customerService));
     }
 
-    protected override bool CanInvoke(object? parameter) => !this.viewModel.IsBusy;
+    protected override bool CanInvoke() => !this.viewModel.IsBusy;
 
-    protected override async Task InvokeAsync(object? parameter, CancellationToken cancellationToken)
+    protected override async Task InvokeAsync(CancellationToken cancellationToken)
     {
         this.viewModel.IsBusy = true;
         this.viewModel.ErrorMessage = null;

@@ -27,7 +27,7 @@ public sealed class OpenLogFolderCommand : DelegateBaseCommand
         this.notifications = notifications ?? throw new ArgumentNullException(nameof(notifications));
     }
 
-    protected override void Invoke(object? parameter)
+    protected override void Invoke()
     {
         this.shell.RevealFile(this.session.LogFilePath);
         Logger.LogFolderOpened(this.session.LogDirectory);
