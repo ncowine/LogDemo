@@ -25,6 +25,8 @@
 
   <ItemGroup>
     <InternalsVisibleTo Include="LogDemo.Logging.Tests" />
+    <!-- For LogSession's constructor: app tests need a session without starting a LoggingHost. -->
+    <InternalsVisibleTo Include="LogDemo.App.Tests" />
   </ItemGroup>
 
 </Project>

@@ -42,6 +42,8 @@ src/
                               ViewModels/, Views/, Services/, Logging/AppLog.cs, appsettings.json
 tests/
   LogDemo.Logging.Tests/      NUnit + Moq for the Common projects, runs on net472, net8 and net10
+  LogDemo.App.Tests/          view models and commands of both apps: net472 tests App.NetFramework,
+                              net8/net10 test App.Net (same sources, see GlobalUsings.cs)
 observability/                server side, as an add-on to the existing Grafana stack: OpenTelemetry
                               Collector, Grafana dashboard and alert rules (see its README)
 ```

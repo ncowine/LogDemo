@@ -21,6 +21,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LogDemo.Logging.Tests", "te
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LogDemo.Logging.Observability", "src\Common\LogDemo.Logging.Observability\LogDemo.Logging.Observability.csproj", "{994B21F0-E25D-4480-9187-582719410E7C}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LogDemo.App.Tests", "tests\LogDemo.App.Tests\LogDemo.App.Tests.csproj", "{EC4B5C0C-29DC-4404-B19E-FCC42595CFBE}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -103,6 +105,18 @@ Global
 		{994B21F0-E25D-4480-9187-582719410E7C}.Release|x64.Build.0 = Release|Any CPU
 		{994B21F0-E25D-4480-9187-582719410E7C}.Release|x86.ActiveCfg = Release|Any CPU
 		{994B21F0-E25D-4480-9187-582719410E7C}.Release|x86.Build.0 = Release|Any CPU
+		{EC4B5C0C-29DC-4404-B19E-FCC42595CFBE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{EC4B5C0C-29DC-4404-B19E-FCC42595CFBE}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{EC4B5C0C-29DC-4404-B19E-FCC42595CFBE}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{EC4B5C0C-29DC-4404-B19E-FCC42595CFBE}.Debug|x64.Build.0 = Debug|Any CPU
+		{EC4B5C0C-29DC-4404-B19E-FCC42595CFBE}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{EC4B5C0C-29DC-4404-B19E-FCC42595CFBE}.Debug|x86.Build.0 = Debug|Any CPU
+		{EC4B5C0C-29DC-4404-B19E-FCC42595CFBE}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{EC4B5C0C-29DC-4404-B19E-FCC42595CFBE}.Release|Any CPU.Build.0 = Release|Any CPU
+		{EC4B5C0C-29DC-4404-B19E-FCC42595CFBE}.Release|x64.ActiveCfg = Release|Any CPU
+		{EC4B5C0C-29DC-4404-B19E-FCC42595CFBE}.Release|x64.Build.0 = Release|Any CPU
+		{EC4B5C0C-29DC-4404-B19E-FCC42595CFBE}.Release|x86.ActiveCfg = Release|Any CPU
+		{EC4B5C0C-29DC-4404-B19E-FCC42595CFBE}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -114,5 +128,6 @@ Global
 		{C779A9E5-8EBD-4E39-918A-3D598663EFE9} = {1787FE1D-075E-9E68-7218-25F1BD1BBEAB}
 		{96BDA5D2-7216-45E6-A0D9-38612D312C09} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 		{994B21F0-E25D-4480-9187-582719410E7C} = {881589EE-639B-0A35-DBCE-5D94E4FC90C0}
+		{EC4B5C0C-29DC-4404-B19E-FCC42595CFBE} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 	EndGlobalSection
 EndGlobal
